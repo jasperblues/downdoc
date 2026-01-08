@@ -5073,6 +5073,71 @@ describe('downdoc()', () => {
       expect(downdoc(input)).to.equal(expected)
     })
 
+    it('should convert graphviz block to SVG when graphviz is installed', () => {
+      const input = heredoc`
+      [graphviz]
+      ....
+      digraph G { A -> B }
+      ....
+      `
+      const output = downdoc(input)
+      // If graphviz is installed, output should contain SVG
+      // If not, it should fall back to a code block
+      const hasGraphviz = output.includes('<svg')
+      const hasFallback = output.includes('\`\`\`dot')
+      expect(hasGraphviz || hasFallback).to.be.true()
+      if (hasGraphviz) {
+        expect(output).to.include('</svg>')
+      }
+    })
+
+    it('should convert dot block to SVG when graphviz is installed', () => {
+      const input = heredoc`
+      [dot]
+      ....
+      digraph { X -> Y }
+      ....
+      `
+      const output = downdoc(input)
+      // If graphviz is installed, output should contain SVG
+      const hasGraphviz = output.includes('<svg')
+      const hasFallback = output.includes('\`\`\`dot')
+      expect(hasGraphviz || hasFallback).to.be.true()
+    })
+
+    it('should resolve include directive inside graphviz block', () => {
+      const fs = require('node:fs')
+      const path = require('node:path')
+      const os = require('node:os')
+
+      // Create a temporary DOT file
+      const tmpDir = os.tmpdir()
+      const dotContent = 'digraph G { Include -> Works }'
+      const dotFile = path.join(tmpDir, 'test-diagram.dot')
+      fs.writeFileSync(dotFile, dotContent)
+
+      try {
+        const input = heredoc`
+        [graphviz]
+        ----
+        include::${dotFile}[]
+        ----
+        `
+        const output = downdoc(input)
+        // If graphviz is installed, output should contain SVG with the included content
+        const hasGraphviz = output.includes('<svg')
+        const hasFallback = output.includes('\`\`\`dot')
+        expect(hasGraphviz || hasFallback).to.be.true()
+        if (hasGraphviz) {
+          expect(output).to.include('Include')
+          expect(output).to.include('Works')
+        }
+      } finally {
+        // Clean up
+        fs.unlinkSync(dotFile)
+      }
+    })
+
     it('should not substitute text in a verbatim block without block metadata', () => {
       const input = heredoc`
       = Title

@@ -1,0 +1,6 @@
+== Included Section
+
+This content should be included.
+
+* List item 1
+* List item 2

@@ -1,0 +1,7 @@
+= Test Document
+
+This is before the include.
+
+include::test-included.adoc[]
+
+This is after the include.
