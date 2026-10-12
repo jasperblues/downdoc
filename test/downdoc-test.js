@@ -5138,6 +5138,56 @@ describe('downdoc()', () => {
       }
     })
 
+    it('should include only the tagged region of a source file, outdented, in a source block', () => {
+      const fs = require('node:fs')
+      const path = require('node:path')
+      const os = require('node:os')
+
+      const javaFile = path.join(os.tmpdir(), 'TaggedIncludeTest.java')
+      fs.writeFileSync(javaFile, [
+        'import java.util.Map;',
+        '',
+        'class TaggedIncludeTest {',
+        '    // tag::named[]',
+        '    Map<String, ?> named = Map.of("a", 1);',
+        '',
+        '    void run() {',
+        '        go();',
+        '    }',
+        '    // end::named[]',
+        '',
+        '    // tag::other[]',
+        '    int other = 2;',
+        '    // end::other[]',
+        '}',
+      ].join('\n'))
+
+      try {
+        const input = heredoc`
+        [source,java]
+        ----
+        include::${javaFile}[tag=named,indent=0]
+        ----
+        `
+        const expected = heredoc`
+        \`\`\`java
+        Map<String, ?> named = Map.of("a", 1);
+
+        void run() {
+            go();
+        }
+        \`\`\`
+        `
+        expect(downdoc(input)).to.equal(expected)
+        const both = downdoc(input.replace('tag=named,indent=0', 'tags=named;other'))
+        expect(both).to.include('    int other = 2;')
+        expect(both).to.not.include('tag::')
+        expect(both).to.not.include('import java.util.Map')
+      } finally {
+        fs.unlinkSync(javaFile)
+      }
+    })
+
     it('should not substitute text in a verbatim block without block metadata', () => {
       const input = heredoc`
       = Title
